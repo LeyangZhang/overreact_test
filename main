@@ -1,0 +1,69 @@
+import pandas as pd
+clspc=pd.read_csv('D:\import_data\TRD_Mnth.csv',parse_dates=[1])
+a=clspc.set_index(['Trdmnt','Stkcd'])
+clspc1=a.unstack()
+rets=clspc1.pct_change()
+
+exch=pd.read_csv('D:\import_data\BND_Exchange.csv',parse_dates=[0],index_col=0)
+exch.Nrrmtdt=exch.Nrrmtdt/100
+exchs=pd.Series(exch['Nrrmtdt'],index=rets.index)
+#匹配行，在列上进行广播
+retst=rets.sub(exchs,axis=0)
+#筛选出没有na的股票
+retst1=retst.loc['2000-04-01':'2018-03-01']
+retst1=retst1.dropna(axis=1)
+
+mean_windowa=retst1.rolling(window=12).mean()
+mean_window=retst1.rolling(window=12).mean().loc['2001-3-1':'2017-3-1']
+mean_test=mean_windowa.shift(-12).loc['2001-3-1':'2017-3-1']
+retsq_lose=mean_window.quantile(q=0.2,axis=1)
+retsq_win=mean_window.quantile(q=0.8,axis=1)
+import datetime as dt
+import dateutil
+from datetime import *
+
+lose_win=[]
+x=dt.date(2001,3,1)
+i=1
+while x<date(2018,3,1):
+    b=mean_window.loc[x.strftime('%Y-%m-%d')] #提取出指定日期的窗口期超额收益平均值
+    select_window_lose=b[b<retsq_lose[x.strftime('%Y-%m-%d')]] #筛选出收益率在分为点以下的窗口期股票
+    select_test_lose=pd.Series(mean_test.loc[x.strftime('%Y-%m-%d')],index=select_window_lose.index)
+    #筛选出收益率在分位点以下的这些股票在监测期内的平均收益
+    select_window_win=b[b<retsq_win[x.strftime('%Y-%m-%d')]] 
+    select_test_win=pd.Series(mean_test.loc[x.strftime('%Y-%m-%d')],index=select_window_win.index)
+    lose_win.append(select_test_lose.mean()-select_test_win.mean())
+    x=x+dateutil.relativedelta.relativedelta(years=2)
+    i+=1
+    
+import numpy as np
+from numpy import array
+from sklearn.linear_model import LinearRegression
+import statsmodels.api as sm
+y=lose_win
+x=np.zeros(9)
+X=sm.add_constant(x)
+model=sm.OLS(y,X) 
+fit=model.fit() 
+fit.summary()
+
+#选取上证综指作为市场回报率
+index=pd.read_csv('D:\import_data\TRD_Index.csv',parse_dates=[1],index_col=[1])
+index=index[index['Indexcd']==1]
+index=index.drop(['Indexcd'],axis=1)
+index1=pd.Series(index['Clsindex'],index=exch.index)
+index1=index1.fillna(method='ffill')
+index2=pd.Series(index1,index=rets.index)
+index_r=index2.pct_change().dropna()
+index_r1=index_r.sub(exchs,axis=0)
+
+mean_window_index=index_r1.rolling(window=12).mean().loc['2001-3-1':'2017-3-1']
+mean_test_index=mean_window_index.shift(-12).loc['2001-3-1':'2017-3-1']
+x1=np.zeros(9)
+x2=np.array(k)
+import numpy as np
+x=np.column_stack((x1,x2))
+X=sm.add_constant(x)
+model=sm.OLS(y,X) 
+fit=model.fit() 
+fit.summary()
